@@ -10,6 +10,7 @@ import com.example.enums.Language;
 import com.example.enums.Role;
 import com.example.utils.MD5;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
@@ -57,6 +58,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final UserHistoryService userHistoryService;
 
     private final AttachService attachService;
+
+    @Value("$(channel.id)")
+    private Long channelId;
 
     public TelegramBot(BotConfig config, UsersService usersService, CategoryService categoryService, InnerCategoryService innerCategoryService, PostPhotoService postPhotoService, PostService postService, AdminHistoryService adminHistoryService, UserHistoryService userHistoryService, AttachService attachService) {
         this.config = config;
@@ -134,9 +138,14 @@ public class TelegramBot extends TelegramLongPollingBot {
                     if (role == Role.ROLE_ADMIN) {
 
                         if (messageText.equals("Saqlash")) {
+
+                            // last post content, posts first image
+                            sendLastPostToChannel();
+
                             SendMessage message = new SendMessage();
                             message.setChatId(chatId);
                             message.setText("Buyurtma yaratildi..");
+                            sendLastPostToChannel();
                             message.enableHtml(true);
                             ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
                             List<KeyboardRow> keyboardRows = new ArrayList<>();
@@ -810,10 +819,68 @@ public class TelegramBot extends TelegramLongPollingBot {
             List<List<InlineKeyboardButton>> rows = new ArrayList<>();
             List<InlineKeyboardButton> rowInLine = new ArrayList<>();
 
-
             InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
             uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
             uzbekButton.setCallbackData("SHOPPING " + postId);
+            rowInLine.add(uzbekButton);
+
+            rows.add(rowInLine);
+            inlineKeyboardMarkup.setKeyboard(rows);
+            sendPhoto.setReplyMarkup(inlineKeyboardMarkup);
+            execute(sendPhoto);
+        } catch (RuntimeException | TelegramApiException e) {
+            log.warn("There is a problems during sending a photos, {}", e);
+        }
+    }
+
+    public void sendLastPostToChannel() {
+        PostEntity last = postService.getLast();
+
+        try {
+            List<String> photoUrls = postPhotoService.getPhotoUrl(last.getId());
+            File firstFile = new File(photoUrls.get(0));
+            String extension = getExtension(firstFile.getName());
+            if (extension.equalsIgnoreCase(".mp4")) {
+                SendVideo sendVideo = new SendVideo();
+                sendVideo.setChatId(channelId);
+                sendVideo.setCaption(last.getContent());
+
+                InputFile inputFile = new InputFile();
+                inputFile.setMedia(firstFile, firstFile.getName());
+                sendVideo.setVideo(inputFile);
+                sendVideo.setParseMode("HTML");
+
+                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+                InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
+                uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
+                uzbekButton.setCallbackData("SHOPPING " + last.getId());
+                rowInLine.add(uzbekButton);
+
+                rows.add(rowInLine);
+                inlineKeyboardMarkup.setKeyboard(rows);
+                sendVideo.setReplyMarkup(inlineKeyboardMarkup);
+                execute(sendVideo);
+                return;
+            }
+
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(channelId);
+            sendPhoto.setCaption(last.getContent());
+
+            InputFile inputFile = new InputFile();
+            inputFile.setMedia(firstFile, firstFile.getName());
+            sendPhoto.setPhoto(inputFile);
+            sendPhoto.setParseMode("HTML");
+
+            InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+
+            InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
+            uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
+            uzbekButton.setCallbackData("SHOPPING " + last.getId());
             rowInLine.add(uzbekButton);
 
             rows.add(rowInLine);

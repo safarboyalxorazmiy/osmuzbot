@@ -56,8 +56,11 @@ public class PostService {
     }
 
     public Long getLastId() {
-        PostEntity last = postRepository.getLast();
-        return last.getId();
+        return postRepository.getLast().getId();
+    }
+
+    public PostEntity getLast() {
+        return postRepository.getLast();
     }
 
     public List<PostEntity> getPostsByInnerCategoryId(String from) {
