@@ -10,19 +10,15 @@ import com.example.enums.Language;
 import com.example.enums.Role;
 import com.example.utils.MD5;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
-import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.*;
-import org.telegram.telegrambots.meta.api.objects.File;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
@@ -34,12 +30,11 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.io.*;
-import java.net.URL;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
+import java.io.File;
 
 @Slf4j
 @Component
@@ -60,9 +55,12 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private final UserHistoryService userHistoryService;
 
-    public TelegramBot(BotConfig config, UsersService usersService, CategoryService categoryService, InnerCategoryService innerCategoryService, PostPhotoService postPhotoService, PostService postService, AdminHistoryService adminHistoryService, UserHistoryService userHistoryService) {
+    private final AttachService attachService;
+
+    public TelegramBot(BotConfig config, UsersService usersService, CategoryService categoryService, InnerCategoryService innerCategoryService, PostPhotoService postPhotoService, PostService postService, AdminHistoryService adminHistoryService, UserHistoryService userHistoryService, AttachService attachService) {
         this.config = config;
         this.usersService = usersService;
+        this.attachService = attachService;
 
         List<BotCommand> listOfCommands = new ArrayList<>();
         listOfCommands.add(new BotCommand("/start", "Boshlash"));
@@ -112,7 +110,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                                 sendMessage(entity.getChatId(), textToSend);
                             }
                         }
-                    } else if (messageText.startsWith("/")) {
+                    }
+                    else if (messageText.startsWith("/")) {
                         switch (messageText) {
                             case "/start" -> {
                                 startCommandReceived(chatId, update.getMessage().getChat().getFirstName(), update.getMessage().getChat().getLastName());
@@ -132,6 +131,32 @@ public class TelegramBot extends TelegramLongPollingBot {
                     Label lastLabelByChatId = userHistoryService.getLastLabelByChatId(chatId);
 
                     if (role == Role.ROLE_ADMIN) {
+
+                        if (messageText.equals("Saqlash")) {
+                            SendMessage message = new SendMessage();
+                            message.setChatId(chatId);
+                            message.setText("Buyurtma yaratildi..");
+                            message.enableHtml(true);
+                            ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+                            List<KeyboardRow> keyboardRows = new ArrayList<>();
+                            KeyboardRow row = new KeyboardRow();
+
+                            row.add("Chiqish");
+                            row.add("+");
+
+                            keyboardRows.add(row);
+                            replyKeyboardMarkup.setKeyboard(keyboardRows);
+                            replyKeyboardMarkup.setResizeKeyboard(true);
+                            message.setReplyMarkup(replyKeyboardMarkup);
+
+                            try {
+                                execute(message);
+                            } catch (TelegramApiException e) {
+                                throw new RuntimeException(e);
+                            }
+
+                        }
+
                         // last action was creating
                         Action lastAction = adminHistoryService.getLastAction(chatId);
                         Action lastOpened = adminHistoryService.getLastOpened(chatId);
@@ -270,8 +295,35 @@ public class TelegramBot extends TelegramLongPollingBot {
                         else if (lastOpened == Action.POST_OPENING) {
                             // CREATE POST
                             adminHistoryService.create(chatId, Action.POST_CREATING, Label.ASKING_STARTED, "NO VALUE");
-                            sendMessage(chatId,  "Menga postni jo'nating..");
 
+                            SendMessage message = new SendMessage();
+
+                            message.setChatId(chatId);
+                            message.setText("Menga postni jo'nating..");
+                            message.enableHtml(true);
+                            message.enableMarkdown(true);
+
+                            ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+                            List<KeyboardRow> rows = new ArrayList<>();
+
+                            KeyboardRow row = new KeyboardRow();
+                            KeyboardButton keyboardButton = new KeyboardButton();
+                            keyboardButton.setText("Saqlash");
+                            row.add(keyboardButton);
+                            rows.add(row);
+
+                            replyKeyboardMarkup.setSelective(true);
+                            replyKeyboardMarkup.setResizeKeyboard(true);
+                            replyKeyboardMarkup.setOneTimeKeyboard(true);
+                            replyKeyboardMarkup.setKeyboard(rows);
+
+                            message.setReplyMarkup(replyKeyboardMarkup);
+
+                            try {
+                                execute(message);
+                            } catch (TelegramApiException e) {
+
+                            }
                         }
 
 //                        if (role.equals(Role.ROLE_ADMIN)) {
@@ -394,7 +446,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                         }
                     }
                 }
-
                 else if (update.getMessage().hasPhoto()) {
                     Role role = usersService.getRoleByChatId(chatId);
                     Action lastOpened = adminHistoryService.getLastOpened(chatId);
@@ -408,16 +459,19 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                             try {
                                 GetFile getFile = new GetFile(photo.get(3).getFileId());
-                                File tgFile = execute(getFile);
+                                org.telegram.telegrambots.meta.api.objects.File tgFile = execute(getFile);
                                 String fileUrl = tgFile.getFileUrl(getBotToken());
                                 if (update.getMessage().getCaption()!=null) {
                                     postService.create(update.getMessage().getCaption(), innerCategoryService.getInnerCategoryIdByName(lastOpenedValue));
                                 }
-                                postPhotoService.create(postService.getLastId(), fileUrl);
+                                String localUrl = attachService.saveImageFromUrl(fileUrl);
+                                postPhotoService.create(postService.getLastId(), localUrl);
                                 System.out.println(fileUrl);
-                                sendMessage(update.getMessage().getChatId(), fileUrl);
-                            } catch (TelegramApiException e) {
-
+                                System.out.println(localUrl);
+                                sendMessage(chatId, fileUrl);
+                            }
+                            catch (TelegramApiException e) {
+                                log.warn("Something went wrong during uploading photo");
                             }
                         }
                     }
@@ -590,7 +644,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (role == Role.ROLE_ADMIN) {
             adminHistoryService.create(chatId, Action.POST_OPENING, Label.NO_LABEL, from);
             row.add("+");
-
         }
 
         keyboardRows.add(row);
@@ -906,28 +959,107 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             List<String> photoUrls = postPhotoService.getPhotoUrl(postId);
 
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(chatId);
+            sendPhoto.setCaption(message);
+
+            File imageFile = new File(photoUrls.get(0));
+
+            InputFile inputFile = new InputFile();
+            inputFile.setMedia(imageFile, imageFile.getName());
+            sendPhoto.setPhoto(inputFile);
+            sendPhoto.setParseMode("HTML");
+
+            InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+
+
+            InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
+            uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
+            uzbekButton.setCallbackData("SHOPPING " + postId);
+            rowInLine.add(uzbekButton);
+
+            rows.add(rowInLine);
+            inlineKeyboardMarkup.setKeyboard(rows);
+            sendPhoto.setReplyMarkup(inlineKeyboardMarkup);
+            execute(sendPhoto);
+        } catch (RuntimeException | TelegramApiException e) {
+            log.warn("There is a problems during sending a photos, {}", e);
+        }
+    }
+
+    // OLD WAY SEND MEDIA GROUP NOT WORKED
+    /*public void sendPhotoPostMessage(Long chatId, String message, Long postId) {
+        try {
+            List<String> photoUrls = postPhotoService.getPhotoUrl(postId);
+
+            if (photoUrls.size() == 1) {
+                SendPhoto sendPhoto = new SendPhoto();
+                sendPhoto.setChatId(chatId);
+                sendPhoto.setCaption(message);
+
+                File imageFile = new File(photoUrls.get(0));
+
+                InputFile inputFile = new InputFile();
+                inputFile.setMedia(imageFile, imageFile.getName());
+                sendPhoto.setPhoto(inputFile);
+
+                execute(sendPhoto);
+                return;
+            }
+
             List<InputMedia> photoList = new LinkedList<>();
+            boolean first = true;
             for (String photoUrl : photoUrls) {
 //                InputMediaPhoto inputMediaPhoto = new InputMediaPhoto(downloadFile(photoUrl));
 //                System.out.println(inputMediaPhoto.getType());
-                photoList.add(new InputMediaPhoto(photoUrl));
+                File imageFile = new File(photoUrl);
+//                Path imagePath = imageFile.toPath();
+//                byte[] imageData = Files.readAllBytes(imagePath);
+                InputMediaPhoto inputFile = new InputMediaPhoto();
+                inputFile.setMedia(imageFile, imageFile.getName());
+
+
+                if (first) {
+                    inputFile.setCaption(message);
+
+                    first = false;
+                }
+                photoList.add(inputFile);
             }
-            /*List<InputMedia> photoList = List.of(
+            *//*List<InputMedia> photoList = List.of(
                     new InputMediaPhoto("https://pixlr.com/images/index/remove-bg.webp"),
                     new InputMediaPhoto("https://pixlr.com/images/index/remove-bg.webp"),
                     new InputMediaPhoto("https://pixlr.com/images/index/remove-bg.webp")
-            );*/
+            );*//*
 
             if (!photoList.isEmpty()) {
                 SendMediaGroup mediaGroup = new SendMediaGroup();
                 mediaGroup.setMedias(photoList);
                 mediaGroup.setChatId(chatId);
+
+                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+
+
+                InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
+                uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
+                uzbekButton.setCallbackData("SHOPPING " + postId);
+                rowInLine.add(uzbekButton);
+
+                rows.add(rowInLine);
+                inlineKeyboardMarkup.setKeyboard(rows);
+                mediaGroup.setReplyMarkup(inlineKeyboardMarkup);
+
+
                 execute(mediaGroup);
             }
 
             return;
 
-           /* BufferedInputStream bis = new BufferedInputStream(new URL(imageUrl).openStream());
+           *//* BufferedInputStream bis = new BufferedInputStream(new URL(imageUrl).openStream());
             SendPhoto photoMessage = new SendPhoto();
              photoMessage.setChatId(chatId);
             photoMessage.setCaption(message);
@@ -953,64 +1085,9 @@ public class TelegramBot extends TelegramLongPollingBot {
             e.printStackTrace();
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }*/
+        }*//*
         } catch (RuntimeException | TelegramApiException e) {
-            throw new RuntimeException(e);
+            log.warn("There is a problems during sending a photos, {}", e);
         }
-    }
-
-    public void saveImageFromUrl(String imageUrl, String savePath) {
-        try {
-            URL url = new URL(imageUrl);
-            InputStream inputStream = url.openStream();
-            Path saveFilePath = Paths.get(savePath);
-            OutputStream outputStream = Files.newOutputStream(saveFilePath);
-
-            byte[] buffer = new byte[4096];
-            int bytesRead = -1;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-
-            inputStream.close();
-            outputStream.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-//    public File downloadFile(String fileUrl) {
-//        java.io.File file = null;
-//        try {
-//
-//            Properties sysProps = System.getProperties();
-//            URL url = new URL(fileUrl);
-//            InputStream in = url.openStream();
-//            String directoryPath = sysProps.getProperty("file.separator") + sysProps.getProperty("user.home") + sysProps.getProperty("file.separator") + "Documents" + sysProps.getProperty("file.separator") + "dev";
-//            java.io.File directory = new java.io.File(directoryPath);
-//
-//            String pathToFile = directoryPath + sysProps.getProperty("file.separator") + new Random().nextInt(100) + fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
-//
-//            if (!directory.exists()) {
-//                directory.mkdirs();
-//            }
-//            file = new java.io.File(pathToFile);
-//            file.createNewFile();
-//
-//            FileOutputStream outputStream = new FileOutputStream(file);
-//            int read = 0;
-//
-//            byte[] bytes =  new byte[10000];
-//            while ((read = in.read(bytes)) != -1) {
-//                outputStream.write(bytes, 0, read);
-//
-//            }
-//            outputStream.flush();
-//            outputStream.close();
-//
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//        }
-//        return file;
-//    }
+    }*/
 }
