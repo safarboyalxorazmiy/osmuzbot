@@ -17,6 +17,7 @@ import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
@@ -623,14 +624,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         sendMessage(chatId, "Salom, " + name + "bu yerda bo't haqida ma'lumot bo'lishi kerak edi :)");
     }
 
-    private void categoryAddCommandReceived(long chatId, Action action, Label label, Language language) {
-        if (language == Language.UZ) {
-            sendMessage(chatId, "Kategoriya nomini kiriting..");
-        } else {
-            sendMessage(chatId, "Введите название категории..");
-        }
-    }
-
     private void sendMessage(long chatId, String textToSend) {
         SendMessage message = new SendMessage();
 
@@ -777,15 +770,39 @@ public class TelegramBot extends TelegramLongPollingBot {
     public void sendPhotoPostMessage(Long chatId, String message, Long postId) {
         try {
             List<String> photoUrls = postPhotoService.getPhotoUrl(postId);
+            File firstFile = new File(photoUrls.get(0));
+            String extension = getExtension(firstFile.getName());
+            if (extension.equalsIgnoreCase(".mp4")) {
+                SendVideo sendVideo = new SendVideo();
+                sendVideo.setChatId(chatId);
+                sendVideo.setCaption(message);
+
+                InputFile inputFile = new InputFile();
+                inputFile.setMedia(firstFile, firstFile.getName());
+                sendVideo.setVideo(inputFile);
+                sendVideo.setParseMode("HTML");
+
+                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+                InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
+                uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
+                uzbekButton.setCallbackData("SHOPPING " + postId);
+                rowInLine.add(uzbekButton);
+
+                rows.add(rowInLine);
+                inlineKeyboardMarkup.setKeyboard(rows);
+                sendVideo.setReplyMarkup(inlineKeyboardMarkup);
+                execute(sendVideo);
+                return;
+            }
 
             SendPhoto sendPhoto = new SendPhoto();
             sendPhoto.setChatId(chatId);
             sendPhoto.setCaption(message);
 
-            File imageFile = new File(photoUrls.get(0));
-
             InputFile inputFile = new InputFile();
-            inputFile.setMedia(imageFile, imageFile.getName());
+            inputFile.setMedia(firstFile, firstFile.getName());
             sendPhoto.setPhoto(inputFile);
             sendPhoto.setParseMode("HTML");
 
@@ -807,6 +824,16 @@ public class TelegramBot extends TelegramLongPollingBot {
             log.warn("There is a problems during sending a photos, {}", e);
         }
     }
+
+    public String getExtension(String fileName) {
+        // mp3/jpg/npg/mp4.....
+        if (fileName == null) {
+            throw new RuntimeException("File name null");
+        }
+        int lastIndex = fileName.lastIndexOf(".");
+        return fileName.substring(lastIndex + 1);
+    }
+
 
     // OLD WAY SEND MEDIA GROUP NOT WORKED
     /*public void sendPhotoPostMessage(Long chatId, String message, Long postId) {
