@@ -269,7 +269,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                         showInnerMenu(chatId, messageText, lang, role);
                     }
                     else if (messageText.equals("Chiqish")) {
-                        // TODO Last Opened Main Menu
                         String lastCategoryName = userHistoryService.getLastCategoryName(chatId);
                         showInnerMenu(chatId, lastCategoryName, lang, role);
                     }
@@ -285,8 +284,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                             sendMessage(chatId, "Kategoriya nomini kiriting..");
                         }
                         else if (lastOpened == Action.INNER_CATEGORY_OPENING) {
-                            // CREATE INNER CATEGORY
-
                             String lastOpenedValue = adminHistoryService.getLastOpenedValue(chatId);
 
                             adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.ASKING_STARTED, "NO VALUE");
@@ -325,115 +322,6 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                             }
                         }
-
-//                        if (role.equals(Role.ROLE_ADMIN)) {
-//                            Language language = usersService.getLanguageByChatId(chatId);
-//                            Action lastAction = adminHistoryService.getLastAction(chatId);
-//                            Label lastLabel = adminHistoryService.getLastLabel(chatId);
-//
-//                            // IS CATEGORY OPENED
-//                            if (lastLabel == Label.ASKING_FINISHED) {
-//
-//                            }
-//
-//                            if (lastAction == Action.CATEGORY_CREATING) {
-//
-//                                if (lastLabel.equals(Label.ASKING_STARTED)) {
-//                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_UZ_ASKED, update.getMessage().getText());
-//                                    sendMessage(chatId, "Введите название категории..");
-//                                }
-//                                else if (lastLabel.equals(Label.CATEGORY_NAME_UZ_ASKED)) {
-//                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_RU_ASKED, update.getMessage().getText());
-//                                    adminHistoryService.saveCategory();
-//                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.ASKING_FINISHED, "NO VALUE");
-//
-//                                    SendMessage message = new SendMessage();
-//                                    message.setChatId(chatId);
-//                                    if (language.equals(Language.UZ)) {
-//                                        message.setText("Kategoriya yaratildi!");
-//                                    } else {
-//                                        message.setText("Kategoriya yaratildi!");
-//                                    }
-//
-//                                    InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-//                                    List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-//                                    List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-//
-//                                    InlineKeyboardButton btn = new InlineKeyboardButton();
-//                                    if (language.equals(Language.UZ)) {
-//                                        btn.setText("Bosh Menyuga o'tish ➡️");
-//                                    } else {
-//                                        btn.setText("Перейти в главное меню ➡️");
-//                                    }
-//                                    btn.setCallbackData("admin");
-//                                    rowInLine.add(btn);
-//
-//                                    rows.add(rowInLine);
-//                                    inlineKeyboardMarkup.setKeyboard(rows);
-//                                    message.setReplyMarkup(inlineKeyboardMarkup);
-//
-//                                    try {
-//                                        execute(message);
-//                                    } catch (TelegramApiException e) {
-//
-//                                    }
-//                                }
-//                            }
-//                            if (lastAction == Action.INNER_CATEGORY_CREATING) {
-//                                Label lastLabel = adminHistoryService.getLastLabel(chatId);
-//
-//                                if (lastLabel.equals(Label.ASKING_STARTED)) {
-//                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_UZ_ASKED, update.getMessage().getText());
-//                                    sendMessage(chatId, "Введите название категории..");
-//                                } else if (lastLabel.equals(Label.CATEGORY_NAME_UZ_ASKED)) {
-//                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_RU_ASKED, update.getMessage().getText());
-//                                    adminHistoryService.saveCategory();
-//                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.ASKING_FINISHED, "NO VALUE");
-//
-//                                    SendMessage message = new SendMessage();
-//                                    message.setChatId(chatId);
-//                                    if (language.equals(Language.UZ)) {
-//                                        message.setText("Kategoriya yaratildi!");
-//                                    } else {
-//                                        message.setText("Kategoriya yaratildi!");
-//                                    }
-//
-//                                    InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-//                                    List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-//                                    List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-//
-//                                    InlineKeyboardButton btn = new InlineKeyboardButton();
-//                                    if (language.equals(Language.UZ)) {
-//                                        btn.setText("Bosh Menyuga o'tish ➡️");
-//                                    } else {
-//                                        btn.setText("Перейти в главное меню ➡️");
-//                                    }
-//                                    btn.setCallbackData("admin");
-//                                    rowInLine.add(btn);
-//
-//                                    rows.add(rowInLine);
-//                                    inlineKeyboardMarkup.setKeyboard(rows);
-//                                    message.setReplyMarkup(inlineKeyboardMarkup);
-//
-//                                    try {
-//                                        execute(message);
-//                                    } catch (TelegramApiException e) {
-//
-//                                    }
-//                                }
-//                            }
-//                        }
-
-//                        else if (lastLabelByChatId == Label.CATEGORY_SHOWED) {
-//                            userHistoryService.create(Label.CATEGORY_OPENED, chatId, messageText);
-//                            showInnerMenu(chatId, messageText, lang, role);
-//                        }
-//                        else if (lastLabelByChatId == Label.INNERCATEGORY_SHOWED) {
-//                            userHistoryService.create(Label.INNERCATEGORY_OPENED, chatId, messageText);
-//                            showPosts(chatId, messageText);
-//                        }
-
-                        // If last asking finished
                     }
 
                     if (messageText.contains("login")) {
@@ -628,8 +516,6 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void showPosts(Long chatId, String from, Role role) {
-
-
         List<PostEntity> postsByInnerCategoryId = postService.getPostsByInnerCategoryId(from);
 
         SendMessage message = new SendMessage();
@@ -873,73 +759,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             execute(message);
         } catch (TelegramApiException e) {
             sendMessage(chatId, "Something went wrong.. " + e);
-        }
-    }
-    private void sendInnerMenu(Long chatId, String from, Language language, Role role) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(from);
-
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> rows = new ArrayList<>();
-        List<InnerCategoryDTO> contents = null;
-        if (language == Language.UZ) {
-            contents = innerCategoryService.getAllUz(from);
-        } else if (language == Language.RU) {
-            contents = innerCategoryService.getAllRu(from);
-        }
-
-//        || contents.get(i).length() > 23
-        for (int i = 0; i < contents.size(); i++) {
-            if (i % 2 == 0 || i + 1 == contents.size()) {
-                rows = new ArrayList<>();
-            }
-            KeyboardRow row = new KeyboardRow();
-            row.add(contents.get(i).getName());
-
-            if ((i != 0 && i % 2 == 1) || i + 1 == contents.size()) {
-                rows.add(row);
-            }
-        }
-
-        rows = new ArrayList<>();
-        KeyboardRow plusbtn = new KeyboardRow();
-        if (role == Role.ROLE_ADMIN) {
-            plusbtn.add(" + ");
-            rows.add(plusbtn);
-
-            adminHistoryService.create(chatId, Action.CATEGORY_OPENING, Label.NO_LABEL, from);
-        }
-
-        KeyboardRow button = new KeyboardRow();
-        if (language == Language.UZ) {
-            button.add("⬅️ Chiqish");
-            rows.add(button);
-        } else {
-            button.add("⬅️ Выход");
-            rows.add(button);
-        }
-
-        replyKeyboardMarkup.setKeyboard(rows);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        message.setReplyMarkup(replyKeyboardMarkup);
-
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            sendMessage(chatId, "Something went wrong.. " + e);
-        }
-    }
-
-    public void clearHistory(Update update) {
-        try {
-            DeleteMessage deleteMessage = new DeleteMessage();
-            deleteMessage.setChatId(update.getMessage().getChatId());
-            deleteMessage.setMessageId(update.getMessage().getMessageId());
-
-            execute(deleteMessage);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
         }
     }
 
