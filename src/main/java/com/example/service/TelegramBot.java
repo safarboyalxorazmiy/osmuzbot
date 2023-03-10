@@ -59,7 +59,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private final AttachService attachService;
 
-    @Value("$(channel.id)")
+    @Value("${channel.id}")
     private Long channelId;
 
     public TelegramBot(BotConfig config, UsersService usersService, CategoryService categoryService, InnerCategoryService innerCategoryService, PostPhotoService postPhotoService, PostService postService, AdminHistoryService adminHistoryService, UserHistoryService userHistoryService, AttachService attachService) {
@@ -138,14 +138,11 @@ public class TelegramBot extends TelegramLongPollingBot {
                     if (role == Role.ROLE_ADMIN) {
 
                         if (messageText.equals("Saqlash")) {
-
-                            // last post content, posts first image
                             sendLastPostToChannel();
 
                             SendMessage message = new SendMessage();
                             message.setChatId(chatId);
                             message.setText("Buyurtma yaratildi..");
-                            sendLastPostToChannel();
                             message.enableHtml(true);
                             ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
                             List<KeyboardRow> keyboardRows = new ArrayList<>();
@@ -356,7 +353,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                             List<PhotoSize> photo = update.getMessage().getPhoto();
 
                             try {
-                                GetFile getFile = new GetFile(photo.get(3).getFileId());
+                                GetFile getFile = new GetFile(photo.get(photo.size()-1).getFileId());
                                 org.telegram.telegrambots.meta.api.objects.File tgFile = execute(getFile);
                                 String fileUrl = tgFile.getFileUrl(getBotToken());
                                 if (update.getMessage().getCaption()!=null) {
@@ -878,10 +875,11 @@ public class TelegramBot extends TelegramLongPollingBot {
             List<List<InlineKeyboardButton>> rows = new ArrayList<>();
             List<InlineKeyboardButton> rowInLine = new ArrayList<>();
 
-            InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
-            uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
-            uzbekButton.setCallbackData("SHOPPING " + last.getId());
-            rowInLine.add(uzbekButton);
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText("\uD83D\uDECD Buyurtma berish");
+            button.setUrl("https://t.me/IMPERIA_LEARNING_CENTER_ADMIN");
+            button.setCallbackData("SHOPPING " + last.getId());
+            rowInLine.add(button);
 
             rows.add(rowInLine);
             inlineKeyboardMarkup.setKeyboard(rows);
