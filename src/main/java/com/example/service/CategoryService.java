@@ -76,7 +76,6 @@ public class CategoryService {
         create("Transport", "Транспорт");
         create("Hayvonlar", "Животные");
         create("Sovg'alar", "Подарки");
-        create("Operator bilan bog'lanish", "Связаться с оператором");
         create("Online taxi", "Онлайн такси");
     }
 }

@@ -15,7 +15,7 @@ public class PostEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column
+    @Column(columnDefinition="text", length=10485760)
     private String content;
 
     @Column(name = "category_id")

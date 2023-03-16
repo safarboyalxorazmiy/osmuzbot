@@ -127,6 +127,17 @@ public class TelegramBot extends TelegramLongPollingBot {
                             case "/help" -> {
                                 helpCommandReceived(chatId, update.getMessage().getChat().getFirstName());
                             }
+                            case "/init" -> {
+                                categoryService.init();
+
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
+
+                                innerCategoryService.init();
+                            }
                             default -> sendMessage(chatId, "Sorry, command was not recognized");
                         }
                     }
@@ -627,7 +638,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void helpCommandReceived(long chatId, String name) {
-        sendMessage(chatId, "Salom, " + name + "bu yerda bo't haqida ma'lumot bo'lishi kerak edi :)");
+        sendMessage(chatId, "Assalomu aleykum, " + name + ". \nS    iz bu bot orqali o'zingizga kerakli bo'lgan bo'limlardan foydalanishingiz, buyurtma berishingiz, va o'z xizmatingizni taklif etishingiz mumkin. ");
     }
 
     private void sendMessage(long chatId, String textToSend) {
