@@ -101,10 +101,17 @@ public class TelegramBot extends TelegramLongPollingBot {
             long chatId = update.getMessage().getChatId();
             if (update.getMessage().getChat().getType().equals("supergroup")) {
                 // DO NOTHING CHANNEL CHAT ID IS -1001764816733
+                return;
             } else {
+                Role role = usersService.getRoleByChatId(chatId);
+
+                if (role == Role.ROLE_OPERATOR) {
+                    deleteMessageById(chatId, update.getMessage().getMessageId());
+                    return;
+                }
+
                 if (update.hasMessage() && update.getMessage().hasText()) {
                     usersService.createUser(chatId, update.getMessage().getChat().getFirstName(), update.getMessage().getChat().getLastName());
-                    Role role = usersService.getRoleByChatId(chatId);
 
                     String messageText = update.getMessage().getText();
                     if (messageText.startsWith("/send")) {
@@ -115,8 +122,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                                 sendMessage(entity.getChatId(), textToSend);
                             }
                         }
-                    }
-                    else if (messageText.startsWith("/")) {
+                    } else if (messageText.startsWith("/")) {
                         switch (messageText) {
                             case "/start" -> {
                                 startCommandReceived(chatId, update.getMessage().getChat().getFirstName(), update.getMessage().getChat().getLastName());
@@ -140,6 +146,37 @@ public class TelegramBot extends TelegramLongPollingBot {
                             }
                             default -> sendMessage(chatId, "Sorry, command was not recognized");
                         }
+                    } else if (messageText.startsWith("+998")) {
+                        // IS OFFER STARTED
+                        Language language = usersService.getLanguageByChatId(chatId);
+
+                        Long lastOfferId = Long.valueOf(userHistoryService.getLastOfferId(update.getMessage().getChatId()));
+
+                        String phoneNumber = messageText;
+
+                        List<Long> chatIdByRole = usersService.getChatIdByRole(Role.ROLE_OPERATOR);
+                        for (Long operatorId : chatIdByRole) {
+                            PostEntity post = postService.getPostById(lastOfferId);
+                            String postPhoto = postPhotoService.getPhotoUrl(post.getId()).get(0);
+
+                            sendMessageWithPhoto(String.valueOf(operatorId), postPhoto, "<b>Bo'lim: </b> " + post.getCategory().getNameUz() + " \n " +
+                                    "\n" + "<i>" + post.getContent() + "</i> \n" +
+                                    "\n " + phoneNumber);
+                        }
+
+
+                        SendMessage message = new SendMessage();
+
+                        message.setChatId(chatId);
+                        message.setText("✅ <b>Bo'ldi. Operatorlarimiz siz bilan bog'lanadi.</b> \n ");
+                        message.enableHtml(true);
+                        try {
+                            execute(message);
+                        } catch (TelegramApiException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        showMainMenu(chatId, language, role);
                     }
 
                     Language lang = usersService.getLanguageByChatId(chatId);
@@ -149,7 +186,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                     if (role == Role.ROLE_ADMIN) {
 
                         if (messageText.equals("Saqlash")) {
-                            sendLastPostToChannel();
+                            // sendLastPostToChannel(); TODO Sending to channel canceled
 
                             SendMessage message = new SendMessage();
                             message.setChatId(chatId);
@@ -159,7 +196,11 @@ public class TelegramBot extends TelegramLongPollingBot {
                             List<KeyboardRow> keyboardRows = new ArrayList<>();
                             KeyboardRow row = new KeyboardRow();
 
-                            row.add("Chiqish");
+                            if (lang == Language.UZ) {
+                                row.add("🔙 Orqaga");
+                            } else {
+                                row.add("🔙 Назад");
+                            }
                             row.add("+");
 
                             keyboardRows.add(row);
@@ -181,96 +222,92 @@ public class TelegramBot extends TelegramLongPollingBot {
                         Label lastLabel = adminHistoryService.getLastLabel(chatId);
 
                         if (lastOpened == Action.CATEGORY_OPENING) {
-                                if (lastLabel.equals(Label.ASKING_STARTED)) {
-                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_UZ_ASKED, update.getMessage().getText());
-                                    sendMessage(chatId, "Введите название категории..");
+                            if (lastLabel.equals(Label.ASKING_STARTED)) {
+                                adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_UZ_ASKED, update.getMessage().getText());
+                                sendMessage(chatId, "Введите название категории..");
+                            } else if (lastLabel.equals(Label.CATEGORY_NAME_UZ_ASKED)) {
+                                adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_RU_ASKED, update.getMessage().getText());
+                                adminHistoryService.saveCategory();
+                                adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.ASKING_FINISHED, "NO VALUE");
+
+                                SendMessage message = new SendMessage();
+                                message.setChatId(chatId);
+                                if (lang.equals(Language.UZ)) {
+                                    message.setText("Kategoriya yaratildi!");
+                                } else {
+                                    message.setText("Kategoriya yaratildi!");
                                 }
-                                else if (lastLabel.equals(Label.CATEGORY_NAME_UZ_ASKED)) {
-                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.CATEGORY_NAME_RU_ASKED, update.getMessage().getText());
-                                    adminHistoryService.saveCategory();
-                                    adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.ASKING_FINISHED, "NO VALUE");
 
-                                    SendMessage message = new SendMessage();
-                                    message.setChatId(chatId);
-                                    if (lang.equals(Language.UZ)) {
-                                        message.setText("Kategoriya yaratildi!");
-                                    } else {
-                                        message.setText("Kategoriya yaratildi!");
-                                    }
+                                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
 
-                                    InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-                                    List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-                                    List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-
-                                    InlineKeyboardButton btn = new InlineKeyboardButton();
-                                    if (lang.equals(Language.UZ)) {
-                                        btn.setText("Bosh Menyuga o'tish ➡️");
-                                    } else {
-                                        btn.setText("Перейти в главное меню ➡️");
-                                    }
-                                    btn.setCallbackData("admin");
-                                    rowInLine.add(btn);
-
-                                    rows.add(rowInLine);
-                                    inlineKeyboardMarkup.setKeyboard(rows);
-                                    message.setReplyMarkup(inlineKeyboardMarkup);
-
-                                    try {
-                                        execute(message);
-                                    } catch (TelegramApiException e) {
-
-                                    }
-
-                                    return;
+                                InlineKeyboardButton btn = new InlineKeyboardButton();
+                                if (lang.equals(Language.UZ)) {
+                                    btn.setText("Bosh Menyuga o'tish ➡️");
+                                } else {
+                                    btn.setText("Перейти в главное меню ➡️");
                                 }
+                                btn.setCallbackData("admin");
+                                rowInLine.add(btn);
+
+                                rows.add(rowInLine);
+                                inlineKeyboardMarkup.setKeyboard(rows);
+                                message.setReplyMarkup(inlineKeyboardMarkup);
+
+                                try {
+                                    execute(message);
+                                } catch (TelegramApiException e) {
+
+                                }
+
+                                return;
                             }
-                        else if (lastOpened == Action.INNER_CATEGORY_OPENING) {
-                                // CREATE INNER CATEGORY
+                        } else if (lastOpened == Action.INNER_CATEGORY_OPENING) {
+                            // CREATE INNER CATEGORY
 
-                                String lastOpenedValue = adminHistoryService.getLastOpenedValue(chatId);
-                                if (lastLabel.equals(Label.ASKING_STARTED)) {
-                                    adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.INNER_CATEGORY_NAME_UZ_ASKED, update.getMessage().getText());
-                                    sendMessage(chatId, "Введите название категории..");
+                            String lastOpenedValue = adminHistoryService.getLastOpenedValue(chatId);
+                            if (lastLabel.equals(Label.ASKING_STARTED)) {
+                                adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.INNER_CATEGORY_NAME_UZ_ASKED, update.getMessage().getText());
+                                sendMessage(chatId, "Введите название категории..");
+                            } else if (lastLabel.equals(Label.INNER_CATEGORY_NAME_UZ_ASKED)) {
+                                adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.INNER_CATEGORY_NAME_RU_ASKED, update.getMessage().getText());
+                                adminHistoryService.saveInnerCategory(lastOpenedValue);
+                                adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.ASKING_FINISHED, "NO VALUE");
+
+                                SendMessage message = new SendMessage();
+                                message.setChatId(chatId);
+                                if (lang.equals(Language.UZ)) {
+                                    message.setText("Kategoriya yaratildi!");
+                                } else {
+                                    message.setText("Kategoriya yaratildi!");
                                 }
-                                else if (lastLabel.equals(Label.INNER_CATEGORY_NAME_UZ_ASKED)) {
-                                    adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.INNER_CATEGORY_NAME_RU_ASKED, update.getMessage().getText());
-                                    adminHistoryService.saveInnerCategory(lastOpenedValue);
-                                    adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.ASKING_FINISHED, "NO VALUE");
 
-                                    SendMessage message = new SendMessage();
-                                    message.setChatId(chatId);
-                                    if (lang.equals(Language.UZ)) {
-                                        message.setText("Kategoriya yaratildi!");
-                                    } else {
-                                        message.setText("Kategoriya yaratildi!");
-                                    }
+                                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
 
-                                    InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-                                    List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-                                    List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-
-                                    InlineKeyboardButton btn = new InlineKeyboardButton();
-                                    if (lang.equals(Language.UZ)) {
-                                        btn.setText(lastOpenedValue + " ga o'tish ➡️");
-                                    } else {
-                                        btn.setText("Перейти в главное меню ➡️");
-                                    }
-                                    btn.setCallbackData("/inner " + lastOpenedValue);
-                                    rowInLine.add(btn);
-
-                                    rows.add(rowInLine);
-                                    inlineKeyboardMarkup.setKeyboard(rows);
-                                    message.setReplyMarkup(inlineKeyboardMarkup);
-
-                                    try {
-                                        execute(message);
-                                    } catch (TelegramApiException e) {
-
-                                    }
-                                    return;
+                                InlineKeyboardButton btn = new InlineKeyboardButton();
+                                if (lang.equals(Language.UZ)) {
+                                    btn.setText(lastOpenedValue + " ga o'tish ➡️");
+                                } else {
+                                    btn.setText("Перейти в главное меню ➡️");
                                 }
+                                btn.setCallbackData("/inner " + lastOpenedValue);
+                                rowInLine.add(btn);
+
+                                rows.add(rowInLine);
+                                inlineKeyboardMarkup.setKeyboard(rows);
+                                message.setReplyMarkup(inlineKeyboardMarkup);
+
+                                try {
+                                    execute(message);
+                                } catch (TelegramApiException e) {
+
+                                }
+                                return;
                             }
-                        else if (lastOpened == Action.POST_CREATING) {
+                        } else if (lastOpened == Action.POST_CREATING) {
                             if (lastLabel == Label.ASKING_STARTED) {
 
                             }
@@ -280,34 +317,33 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                     if (innerCategoryService.findByName(messageText)) {
                         userHistoryService.create(Label.INNERCATEGORY_OPENED, chatId, messageText);
-                        showPosts(chatId, messageText, role);
-                    }
-                    else if (categoryService.findByName(messageText)) {
+                        showPosts(chatId, messageText, role, lang);
+                    } else if (categoryService.findByName(messageText)) {
                         userHistoryService.create(Label.CATEGORY_OPENED, chatId, messageText);
                         showInnerMenu(chatId, messageText, lang, role);
-                    }
-                    else if (messageText.equals("Chiqish")) {
+                    } else if (messageText.equals("🔙 Orqaga")) {
                         String lastCategoryName = userHistoryService.getLastCategoryName(chatId);
                         showInnerMenu(chatId, lastCategoryName, lang, role);
-                    }
-                    else if (messageText.equals("⬅️ Chiqish")) {
+                    } else if (messageText.equals("🔙 Назад")) {
+                        String lastCategoryName = userHistoryService.getLastCategoryName(chatId);
+                        showInnerMenu(chatId, lastCategoryName, lang, role);
+                    } else if (messageText.equals("🔝 Asosiy Menyu")) {
                         showMainMenu(chatId, lang, role);
-                    }
-                    else if (messageText.equals("+")) {
+                    } else if (messageText.equals("🔝 Главное меню")) {
+                        showMainMenu(chatId, lang, role);
+                    } else if (messageText.equals("+")) {
                         Action lastOpened = adminHistoryService.getLastOpened(chatId);
                         Label lastLabel = adminHistoryService.getLastLabel(chatId);
 
                         if (lastOpened == Action.CATEGORY_OPENING) {
                             adminHistoryService.create(chatId, Action.CATEGORY_CREATING, Label.ASKING_STARTED, "NO VALUE");
                             sendMessage(chatId, "Kategoriya nomini kiriting..");
-                        }
-                        else if (lastOpened == Action.INNER_CATEGORY_OPENING) {
+                        } else if (lastOpened == Action.INNER_CATEGORY_OPENING) {
                             String lastOpenedValue = adminHistoryService.getLastOpenedValue(chatId);
 
                             adminHistoryService.create(chatId, Action.INNER_CATEGORY_CREATING, Label.ASKING_STARTED, "NO VALUE");
-                            sendMessage(chatId,  lastOpenedValue  + " nomini kiriting..");
-                        }
-                        else if (lastOpened == Action.POST_OPENING) {
+                            sendMessage(chatId, lastOpenedValue + " nomini kiriting..");
+                        } else if (lastOpened == Action.POST_OPENING) {
                             // CREATE POST
                             adminHistoryService.create(chatId, Action.POST_CREATING, Label.ASKING_STARTED, "NO VALUE");
 
@@ -340,6 +376,30 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                             }
                         }
+                    } else if (messageText.equals("Kanal Sozlamalari ⚙️")) {
+                        SendMessage sendMessage = new SendMessage();
+                        sendMessage.setChatId(chatId);
+                        sendMessage.setText("Online Service Market kanali uchun sozlamalar \n");
+
+                        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+                        InlineKeyboardButton btn = new InlineKeyboardButton();
+                        btn.setText("Yangi maqola yaratish +");
+                        btn.setCallbackData("+");
+                        rowInLine.add(btn);
+
+                        rows.add(rowInLine);
+
+                        inlineKeyboardMarkup.setKeyboard(rows);
+                        sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+
+                        try {
+                            execute(sendMessage);
+                            return;
+                        } catch (TelegramApiException e) {
+
+                        }
                     }
 
                     if (messageText.contains("login")) {
@@ -351,23 +411,41 @@ public class TelegramBot extends TelegramLongPollingBot {
                             usersService.changeRole(chatId, Role.ROLE_OPERATOR);
                         }
                     }
-                }
-                else if (update.getMessage().hasPhoto()) {
-                    Role role = usersService.getRoleByChatId(chatId);
+                } else if (update.getMessage().hasPhoto()) {
+                    if (role != Role.ROLE_ADMIN) {
+                        deleteMessageById(chatId, update.getMessage().getMessageId());
+                        return;
+                    }
+
                     Action lastOpened = adminHistoryService.getLastOpened(chatId);
                     Label lastLabel = adminHistoryService.getLastLabel(chatId);
                     String lastOpenedValue = adminHistoryService.getLastOpenedValue(chatId);
+                    Action lastAction = adminHistoryService.getLastAction(chatId);
 
-                    if (lastOpened == Action.POST_OPENING) {
+                    if (lastAction == Action.CHANNEL_POST_CREATING) {
+                        List<PhotoSize> photo = update.getMessage().getPhoto();
+
+                        try {
+                            GetFile getFile = new GetFile(photo.get(photo.size() - 1).getFileId());
+                            org.telegram.telegrambots.meta.api.objects.File tgFile = execute(getFile);
+                            String fileUrl = tgFile.getFileUrl(getBotToken());
+                            String localUrl = attachService.saveImageFromUrl(fileUrl);
+                            sendMessageToChannel(localUrl, update.getMessage().getCaption());
+                            sendMessage(chatId, "Maqola yaratildi ✅");
+                            adminHistoryService.create(chatId, Action.CHANNEL_POST_CREATED, Label.NO_LABEL, "NO_VALUE");
+                        } catch (TelegramApiException ignored) {
+
+                        }
+                    } else if (lastOpened == Action.POST_OPENING) {
                         // CREATE POST
                         if (lastLabel.equals(Label.ASKING_STARTED)) {
                             List<PhotoSize> photo = update.getMessage().getPhoto();
 
                             try {
-                                GetFile getFile = new GetFile(photo.get(photo.size()-1).getFileId());
+                                GetFile getFile = new GetFile(photo.get(photo.size() - 1).getFileId());
                                 org.telegram.telegrambots.meta.api.objects.File tgFile = execute(getFile);
                                 String fileUrl = tgFile.getFileUrl(getBotToken());
-                                if (update.getMessage().getCaption()!=null) {
+                                if (update.getMessage().getCaption() != null) {
                                     postService.create(update.getMessage().getCaption(), innerCategoryService.getInnerCategoryIdByName(lastOpenedValue));
                                 }
                                 String localUrl = attachService.saveImageFromUrl(fileUrl);
@@ -375,14 +453,12 @@ public class TelegramBot extends TelegramLongPollingBot {
                                 System.out.println(fileUrl);
                                 System.out.println(localUrl);
                                 sendMessage(chatId, fileUrl);
-                            }
-                            catch (TelegramApiException e) {
+                            } catch (TelegramApiException e) {
                                 log.warn("Something went wrong during uploading photo");
                             }
                         }
                     }
-                }
-                else if (update.getMessage().hasContact()) {
+                } else if (update.getMessage().hasContact()) {
                     // IS OFFER STARTED
                     Language language = usersService.getLanguageByChatId(chatId);
 
@@ -396,30 +472,12 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                     List<Long> chatIdByRole = usersService.getChatIdByRole(Role.ROLE_OPERATOR);
                     for (Long operatorId : chatIdByRole) {
-                        SendMessage sendMessage = new SendMessage();
-                        sendMessage.setChatId(operatorId);
-                        sendMessage.enableHtml(true);
-                        Language operatorLanguage = usersService.getLanguageByChatId(chatId);
-
                         PostEntity post = postService.getPostById(lastOfferId);
-                        if (operatorLanguage == Language.UZ) {
-                            sendMessage.setText(
-                                    "<b>" + post.getCategory().getNameUz() + "</b>" + " \n " +
-                                            "\n" + "<i>" + post.getContent() + "</i>" +
-                                            "\n" + firstName + " " + lastName + " " + phoneNumber);
-                        }
-                        else {
-                            sendMessage.setText(
-                                    "<b>" + post.getCategory().getNameRu() + "</b>" + " \n " +
-                                            "\n" + "<i>" + post.getContent() + "</i>" +
-                                            "\n" + firstName + " " + lastName + " " + phoneNumber);
-                        }
+                        String postPhoto = postPhotoService.getPhotoUrl(post.getId()).get(0);
 
-                        try {
-                            execute(sendMessage);
-                        } catch (TelegramApiException e) {
-                            throw new RuntimeException(e);
-                        }
+                        sendMessageWithPhoto(String.valueOf(operatorId), postPhoto, "<b>Bo'lim: </b> " + post.getCategory().getNameUz() + " \n " +
+                                "\n" + "<i>" + post.getContent() + "</i> \n" +
+                                "\n" + firstName + " " + lastName + " " + phoneNumber);
                     }
 
 
@@ -430,16 +488,15 @@ public class TelegramBot extends TelegramLongPollingBot {
                     message.enableHtml(true);
                     try {
                         execute(message);
-                    }
-                    catch (TelegramApiException e) {
+                    } catch (TelegramApiException e) {
                         throw new RuntimeException(e);
                     }
 
-                    showMainMenu(chatId, language, Role.ROLE_USER);
+                    showMainMenu(chatId, language, role);
+                    return;
                 }
             }
-        }
-        else if (update.hasCallbackQuery()) {
+        } else if (update.hasCallbackQuery()) {
             long chatId = update.getCallbackQuery().getMessage().getChatId();
             long messageId = update.getCallbackQuery().getMessage().getMessageId();
 
@@ -452,28 +509,36 @@ public class TelegramBot extends TelegramLongPollingBot {
                     deleteMessageById(chatId, (int) messageId);
                     usersService.setLanguage(chatId, Language.UZ);
                     showMainMenu(chatId, Language.UZ, userRole);
-                }
-                else if (callBackData.equals("LANG_RU")) {
+                } else if (callBackData.equals("LANG_RU")) {
                     deleteMessageById(chatId, (int) messageId);
                     usersService.setLanguage(chatId, Language.RU);
                     showMainMenu(chatId, Language.RU, userRole);
                 }
-            }
-            else if (callBackData.contains("SHOPPING")) {
+            } else if (callBackData.contains("SHOPPING")) {
 
                 String postId = callBackData.substring(9);
                 userHistoryService.create(Label.OFFER_STARTED, chatId, postId);
 
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(chatId);
-                sendMessage.setText("Telefon raqamingizni kiriting..");
+                if (userLanguage == Language.UZ) {
+                    sendMessage.setText("Telefon raqamingizni kiriting..");
+                } else {
+                    sendMessage.setText("Введите свой номер телефона.");
+                }
                 ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
                 List<KeyboardRow> rows = new ArrayList<>();
 
                 KeyboardRow row = new KeyboardRow();
                 KeyboardButton keyboardButton = new KeyboardButton();
                 keyboardButton.setRequestContact(true);
-                keyboardButton.setText("Telefon raqamni yuborish \uD83D\uDCF2");
+
+                if (userLanguage == Language.UZ) {
+                    keyboardButton.setText("Telefon raqamni yuborish \uD83D\uDCF2");
+                } else {
+                    keyboardButton.setText("Отправить номер телефона \uD83D\uDCF2");
+                }
+
                 row.add(keyboardButton);
                 rows.add(row);
 
@@ -489,62 +554,65 @@ public class TelegramBot extends TelegramLongPollingBot {
                 } catch (TelegramApiException e) {
                     throw new RuntimeException(e);
                 }
-            }
-            else if (callBackData.contains("/inner")) {
+            } else if (callBackData.contains("/inner")) {
                 String from = callBackData.substring(callBackData.indexOf(" ")).trim();
                 showInnerMenu(chatId, from, userLanguage, userRole);
-            }
-            else if (callBackData.equals("ADD_CATEGORY")) {
-
-            }
-            else if (userLanguage == Language.UZ) {
+            } else if (callBackData.equals("+")) {
+                if (userRole == Role.ROLE_ADMIN) {
+                    sendMessage(chatId, "Menga postni jo'nating");
+                    adminHistoryService.create(chatId, Action.CHANNEL_POST_CREATING, Label.NO_LABEL, "NO_VALUE");
+                }
+            } else if (callBackData.equals("ADD_CATEGORY")) {
+            } else if (userLanguage == Language.UZ) {
                 if (callBackData.equals("Chiqish")) {
 //                    showMainMenu(chatId, (int) messageId, Language.UZ, userRole);
-                }
-                else if (callBackData.equals("admin")) {
+                } else if (callBackData.equals("admin")) {
                     showMainMenu(chatId, Language.UZ, userRole);
-                }
-                else if (callBackData.contains("inner")) {
+                } else if (callBackData.contains("inner")) {
                     String innerCategoryId = callBackData.substring(6);
                     List<PostEntity> postsByInnerCategoryId = postService.getPostsByInnerCategoryId(innerCategoryId);
 
                     for (PostEntity postEntity : postsByInnerCategoryId) {
                         deleteMessageById(chatId, (int) messageId);
-                        sendPhotoPostMessage(chatId, postEntity.getContent(), postEntity.getId());
+                        sendPhotoPostMessage(chatId, postEntity.getContent(), postEntity.getId(), userLanguage);
 //                        messageHistoryService.create((int) messageId, chatId);
 
                     }
-                }
-                else {
+                } else {
 //                    showInnerMenu(chatId, (int) messageId, callBackData, Language.UZ, userRole);
                 }
-            }
-            else if (userLanguage == Language.RU) {
+            } else if (userLanguage == Language.RU) {
                 if (callBackData.equals("Выход")) {
 //                    showMainMenu(chatId, (int) messageId, Language.RU, userRole);
-                }
-                else if (callBackData.equals("admin")) {
+                } else if (callBackData.equals("admin")) {
                     showMainMenu(chatId, Language.RU, userRole);
-                }
-                else {
+                } else {
 //                    showInnerMenu(chatId, (int) messageId, callBackData, Language.RU, userRole);
                 }
             }
         }
     }
 
-    private void showPosts(Long chatId, String from, Role role) {
+    private void showPosts(Long chatId, String from, Role role, Language language) {
         List<PostEntity> postsByInnerCategoryId = postService.getPostsByInnerCategoryId(from);
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Maxsulotlar: " + postsByInnerCategoryId.size());
+        if (language == Language.UZ) {
+            message.setText("Maxsulotlar: " + postsByInnerCategoryId.size());
+        } else {
+            message.setText("Продукты: " + postsByInnerCategoryId.size());
+        }
         message.enableHtml(true);
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboardRows = new ArrayList<>();
         KeyboardRow row = new KeyboardRow();
 
-        row.add("Chiqish");
+        if (language == Language.UZ) {
+            row.add("🔙 Orqaga");
+        } else {
+            row.add("🔙 Назад");
+        }
         if (role == Role.ROLE_ADMIN) {
             adminHistoryService.create(chatId, Action.POST_OPENING, Label.NO_LABEL, from);
             row.add("+");
@@ -563,7 +631,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         for (PostEntity postEntity : postsByInnerCategoryId) {
             //postPhotoService.getPhotoUrl(postEntity.getId()).get(0)
-            sendPhotoPostMessage(chatId, postEntity.getContent(),  postEntity.getId());
+            sendPhotoPostMessage(chatId, postEntity.getContent(), postEntity.getId(), language);
         }
     }
 
@@ -638,7 +706,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void helpCommandReceived(long chatId, String name) {
-        sendMessage(chatId, "Assalomu aleykum, " + name + ". \nS    iz bu bot orqali o'zingizga kerakli bo'lgan bo'limlardan foydalanishingiz, buyurtma berishingiz, va o'z xizmatingizni taklif etishingiz mumkin. ");
+        sendMessage(chatId, "Assalomu aleykum, " + name + ". \nSiz bu bot orqali o'zingizga kerakli bo'lgan bo'limlardan foydalanishingiz, buyurtma berishingiz, va o'z xizmatingizni taklif etishingiz mumkin. ");
     }
 
     private void sendMessage(long chatId, String textToSend) {
@@ -694,6 +762,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         row = new KeyboardRow();
         if (role.equals(Role.ROLE_ADMIN)) {
             row.add(" + ");
+            row.add("Kanal Sozlamalari ⚙️");
         }
 
         rows.add(row);
@@ -753,10 +822,10 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         row = new KeyboardRow();
         if (language == Language.UZ) {
-            row.add("⬅️ Chiqish");
+            row.add("🔝 Asosiy Menyu");
             rows.add(row);
         } else {
-            row.add("⬅️ Выход");
+            row.add("🔝 Главное меню");
             rows.add(row);
         }
 
@@ -784,7 +853,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    public void sendPhotoPostMessage(Long chatId, String message, Long postId) {
+    public void sendPhotoPostMessage(Long chatId, String message, Long postId, Language language) {
         try {
             List<String> photoUrls = postPhotoService.getPhotoUrl(postId);
             File firstFile = new File(photoUrls.get(0));
@@ -802,10 +871,16 @@ public class TelegramBot extends TelegramLongPollingBot {
                 InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
                 List<List<InlineKeyboardButton>> rows = new ArrayList<>();
                 List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-                InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
-                uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
-                uzbekButton.setCallbackData("SHOPPING " + postId);
-                rowInLine.add(uzbekButton);
+                InlineKeyboardButton button = new InlineKeyboardButton();
+
+                if (language == Language.UZ) {
+                    button.setText("\uD83D\uDECD Buyurtma berish");
+                } else {
+                    button.setText("\uD83D\uDECD Разместить заказ");
+                }
+
+                button.setCallbackData("SHOPPING " + postId);
+                rowInLine.add(button);
 
                 rows.add(rowInLine);
                 inlineKeyboardMarkup.setKeyboard(rows);
@@ -827,17 +902,23 @@ public class TelegramBot extends TelegramLongPollingBot {
             List<List<InlineKeyboardButton>> rows = new ArrayList<>();
             List<InlineKeyboardButton> rowInLine = new ArrayList<>();
 
-            InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
-            uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
-            uzbekButton.setCallbackData("SHOPPING " + postId);
-            rowInLine.add(uzbekButton);
+            InlineKeyboardButton button = new InlineKeyboardButton();
+
+            if (language == Language.UZ) {
+                button.setText("\uD83D\uDECD Buyurtma berish");
+            } else {
+                button.setText("\uD83D\uDECD Разместить заказ");
+            }
+
+            button.setCallbackData("SHOPPING " + postId);
+            rowInLine.add(button);
 
             rows.add(rowInLine);
             inlineKeyboardMarkup.setKeyboard(rows);
             sendPhoto.setReplyMarkup(inlineKeyboardMarkup);
             execute(sendPhoto);
         } catch (RuntimeException | TelegramApiException e) {
-            log.warn("There is a problems during sending a photos, {}", e);
+            log.warn("There is a problems during sending a media, {}", e);
         }
     }
 
@@ -901,6 +982,62 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    public void sendMessageToChannel(String photoUrl, String content) {
+        try {
+            File firstFile = new File(photoUrl);
+            String extension = getExtension(firstFile.getName());
+            if (extension.equalsIgnoreCase(".mp4")) {
+                SendVideo sendVideo = new SendVideo();
+                sendVideo.setChatId(channelId);
+                sendVideo.setCaption(content);
+
+                InputFile inputFile = new InputFile();
+                inputFile.setMedia(firstFile, firstFile.getName());
+                sendVideo.setVideo(inputFile);
+                sendVideo.setParseMode("HTML");
+
+                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+                InlineKeyboardButton button = new InlineKeyboardButton();
+                button.setText("\uD83D\uDECD Buyurtma berish");
+                button.setUrl("https://t.me/osmuzbot");
+                rowInLine.add(button);
+
+                rows.add(rowInLine);
+                inlineKeyboardMarkup.setKeyboard(rows);
+                sendVideo.setReplyMarkup(inlineKeyboardMarkup);
+                execute(sendVideo);
+                return;
+            }
+
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(channelId);
+            sendPhoto.setCaption(content);
+
+            InputFile inputFile = new InputFile();
+            inputFile.setMedia(firstFile, firstFile.getName());
+            sendPhoto.setPhoto(inputFile);
+            sendPhoto.setParseMode("HTML");
+
+            InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText("\uD83D\uDECD Buyurtma berish");
+            button.setUrl("https://t.me/osmuzbot");
+            rowInLine.add(button);
+
+            rows.add(rowInLine);
+            inlineKeyboardMarkup.setKeyboard(rows);
+            sendPhoto.setReplyMarkup(inlineKeyboardMarkup);
+            execute(sendPhoto);
+        } catch (RuntimeException | TelegramApiException e) {
+            log.warn("There is a problems during sending a photos, {}", e);
+        }
+    }
+
     public String getExtension(String fileName) {
         // mp3/jpg/npg/mp4.....
         if (fileName == null) {
@@ -910,6 +1047,20 @@ public class TelegramBot extends TelegramLongPollingBot {
         return fileName.substring(lastIndex + 1);
     }
 
+
+    public void sendMessageWithPhoto(String chatId, String photoUrl, String caption) {
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setChatId(chatId);
+        sendPhoto.setPhoto(new InputFile(new File(photoUrl)));
+        sendPhoto.setCaption(caption);
+        sendPhoto.setParseMode("HTML");
+
+        try {
+            execute(sendPhoto);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
 
     // OLD WAY SEND MEDIA GROUP NOT WORKED
     /*public void sendPhotoPostMessage(Long chatId, String message, Long postId) {
