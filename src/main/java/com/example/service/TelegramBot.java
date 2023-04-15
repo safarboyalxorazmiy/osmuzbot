@@ -916,66 +916,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    public void sendLastPostToChannel() {
-        PostEntity last = postService.getLast();
-
-        try {
-            List<String> photoUrls = postPhotoService.getPhotoUrl(last.getId());
-            File firstFile = new File(photoUrls.get(0));
-            String extension = getExtension(firstFile.getName());
-            if (extension.equalsIgnoreCase(".mp4")) {
-                SendVideo sendVideo = new SendVideo();
-                sendVideo.setChatId(channelId);
-                sendVideo.setCaption(last.getContent());
-
-                InputFile inputFile = new InputFile();
-                inputFile.setMedia(firstFile, firstFile.getName());
-                sendVideo.setVideo(inputFile);
-                sendVideo.setParseMode("HTML");
-
-                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-                InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
-                uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
-                uzbekButton.setCallbackData("SHOPPING " + last.getId());
-                rowInLine.add(uzbekButton);
-
-                rows.add(rowInLine);
-                inlineKeyboardMarkup.setKeyboard(rows);
-                sendVideo.setReplyMarkup(inlineKeyboardMarkup);
-                execute(sendVideo);
-                return;
-            }
-
-            SendPhoto sendPhoto = new SendPhoto();
-            sendPhoto.setChatId(channelId);
-            sendPhoto.setCaption(last.getContent());
-
-            InputFile inputFile = new InputFile();
-            inputFile.setMedia(firstFile, firstFile.getName());
-            sendPhoto.setPhoto(inputFile);
-            sendPhoto.setParseMode("HTML");
-
-            InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-            List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-
-            InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText("\uD83D\uDECD Buyurtma berish");
-            button.setUrl("https://t.me/IMPERIA_LEARNING_CENTER_ADMIN");
-            button.setCallbackData("SHOPPING " + last.getId());
-            rowInLine.add(button);
-
-            rows.add(rowInLine);
-            inlineKeyboardMarkup.setKeyboard(rows);
-            sendPhoto.setReplyMarkup(inlineKeyboardMarkup);
-            execute(sendPhoto);
-        } catch (RuntimeException | TelegramApiException e) {
-            log.warn("There is a problems during sending a photos, {}", e);
-        }
-    }
-
     public void sendMessageToChannel(String photoUrl, String content) {
         try {
             File firstFile = new File(photoUrl);
@@ -1033,14 +973,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public String getExtension(String fileName) {
-        // mp3/jpg/npg/mp4.....
         if (fileName == null) {
             throw new RuntimeException("File name null");
         }
         int lastIndex = fileName.lastIndexOf(".");
         return fileName.substring(lastIndex + 1);
     }
-
 
     public void sendMessageWithPhoto(String chatId, String photoUrl, String caption) {
         SendPhoto sendPhoto = new SendPhoto();
@@ -1055,107 +993,4 @@ public class TelegramBot extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
-
-    // OLD WAY SEND MEDIA GROUP NOT WORKED
-    /*public void sendPhotoPostMessage(Long chatId, String message, Long postId) {
-        try {
-            List<String> photoUrls = postPhotoService.getPhotoUrl(postId);
-
-            if (photoUrls.size() == 1) {
-                SendPhoto sendPhoto = new SendPhoto();
-                sendPhoto.setChatId(chatId);
-                sendPhoto.setCaption(message);
-
-                File imageFile = new File(photoUrls.get(0));
-
-                InputFile inputFile = new InputFile();
-                inputFile.setMedia(imageFile, imageFile.getName());
-                sendPhoto.setPhoto(inputFile);
-
-                execute(sendPhoto);
-                return;
-            }
-
-            List<InputMedia> photoList = new LinkedList<>();
-            boolean first = true;
-            for (String photoUrl : photoUrls) {
-//                InputMediaPhoto inputMediaPhoto = new InputMediaPhoto(downloadFile(photoUrl));
-//                System.out.println(inputMediaPhoto.getType());
-                File imageFile = new File(photoUrl);
-//                Path imagePath = imageFile.toPath();
-//                byte[] imageData = Files.readAllBytes(imagePath);
-                InputMediaPhoto inputFile = new InputMediaPhoto();
-                inputFile.setMedia(imageFile, imageFile.getName());
-
-
-                if (first) {
-                    inputFile.setCaption(message);
-
-                    first = false;
-                }
-                photoList.add(inputFile);
-            }
-            *//*List<InputMedia> photoList = List.of(
-                    new InputMediaPhoto("https://pixlr.com/images/index/remove-bg.webp"),
-                    new InputMediaPhoto("https://pixlr.com/images/index/remove-bg.webp"),
-                    new InputMediaPhoto("https://pixlr.com/images/index/remove-bg.webp")
-            );*//*
-
-            if (!photoList.isEmpty()) {
-                SendMediaGroup mediaGroup = new SendMediaGroup();
-                mediaGroup.setMedias(photoList);
-                mediaGroup.setChatId(chatId);
-
-                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-
-
-                InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
-                uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
-                uzbekButton.setCallbackData("SHOPPING " + postId);
-                rowInLine.add(uzbekButton);
-
-                rows.add(rowInLine);
-                inlineKeyboardMarkup.setKeyboard(rows);
-                mediaGroup.setReplyMarkup(inlineKeyboardMarkup);
-
-
-                execute(mediaGroup);
-            }
-
-            return;
-
-            BufferedInputStream bis = new BufferedInputStream(new URL(imageUrl).openStream());
-            SendPhoto photoMessage = new SendPhoto();
-             photoMessage.setChatId(chatId);
-            photoMessage.setCaption(message);
-            photoMessage.setPhoto(new InputFile(bis, "image.jpg"));
-
-            InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-            List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-
-
-            InlineKeyboardButton uzbekButton = new InlineKeyboardButton();
-            uzbekButton.setText("\uD83D\uDECD Buyurtma berish");
-            uzbekButton.setCallbackData("SHOPPING " + postId);
-            rowInLine.add(uzbekButton);
-
-            rows.add(rowInLine);
-            inlineKeyboardMarkup.setKeyboard(rows);
-            photoMessage.setReplyMarkup(inlineKeyboardMarkup);
-
-            //🛍
-            // call the execute method of the BotsApi class to send the message
-            execute(photoMessage);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        } catch (RuntimeException | TelegramApiException e) {
-            log.warn("There is a problems during sending a photos, {}", e);
-        }
-    }*/
 }
