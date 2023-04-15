@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
@@ -23,8 +22,6 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
-import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -32,9 +29,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.io.File;
 
@@ -1132,7 +1126,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             return;
 
-           *//* BufferedInputStream bis = new BufferedInputStream(new URL(imageUrl).openStream());
+            BufferedInputStream bis = new BufferedInputStream(new URL(imageUrl).openStream());
             SendPhoto photoMessage = new SendPhoto();
              photoMessage.setChatId(chatId);
             photoMessage.setCaption(message);
@@ -1151,14 +1145,15 @@ public class TelegramBot extends TelegramLongPollingBot {
             rows.add(rowInLine);
             inlineKeyboardMarkup.setKeyboard(rows);
             photoMessage.setReplyMarkup(inlineKeyboardMarkup);
-//🛍
+
+            //🛍
             // call the execute method of the BotsApi class to send the message
             execute(photoMessage);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }*//*
+        }
         } catch (RuntimeException | TelegramApiException e) {
             log.warn("There is a problems during sending a photos, {}", e);
         }
