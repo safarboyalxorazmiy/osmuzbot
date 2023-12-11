@@ -17,9 +17,9 @@ public class InnerCategoryEntity {
     @GenericGenerator(name = "inner_category_uuid", strategy = "org.hibernate.id.UUIDGenerator")
     private String id;
 
-    @Column(name = "nameuz", unique = true)
+    @Column(name = "nameuz")
     private String nameUz;
-    @Column(name = "nameru", unique = true)
+    @Column(name = "nameru")
     private String nameRu;
 
     @Column(name = "category_id")

@@ -19,6 +19,10 @@ public interface InnerCategoryRepository extends CrudRepository<InnerCategoryEnt
 
     List<InnerCategoryEntity> findByCategoryId(Long categoryId);
 
+    @Query("from InnerCategoryEntity where (nameUz=?1 or nameRu=?1) and (category.nameUz=?2 or category.nameRu=?2)")
+    Optional<InnerCategoryEntity> findByNameAndParentName(String innerCategoryName, String categoryName);
+
+
     @Query("from InnerCategoryEntity where nameUz=?1 or nameRu=?1")
     Optional<InnerCategoryEntity> findByName(String name);
 

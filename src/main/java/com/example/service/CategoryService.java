@@ -67,15 +67,11 @@ public class CategoryService {
     }
 
     public void init() {
-        create("Xizmatlar", "Услуги");
-        create("Elektr jihozlar", "Электрическое оборудование");
-        create("Ko'chmas mulk", "недвижимость");
-        create("Moda va still", "Мода и стиль");
-        create("Bolalar dunyosi", "Детский мир");
-        create("Ish", "Работа");
-        create("Transport", "Транспорт");
-        create("Hayvonlar", "Животные");
-        create("Sovg'alar", "Подарки");
-        create("Online taxi", "Онлайн такси");
+        create("1-kichik nohiya", "1-микрорайон");
+        create("2-kichik nohiya", "2-микрорайон");
+        create("3-kichik nohiya", "3-микрорайон");
+        create("4-kichik nohiya", "4-микрорайон");
+        create("5-kichik nohiya", "5-микрорайон");
+        create("Hovlilar", "Участки");
     }
 }

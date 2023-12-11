@@ -63,8 +63,10 @@ public class PostService {
         return postRepository.getLast();
     }
 
-    public List<PostEntity> getPostsByInnerCategoryId(String from) {
-        return postRepository.findByCategoryId(innerCategoryService.getInnerCategoryIdByName(from));
+    public List<PostEntity> getPostsByInnerCategoryId(String innerCategoryName, String categoryName) {
+        return postRepository.findByCategoryId(
+                innerCategoryService.getInnerCategoryIdByNameAndCategoryName(innerCategoryName, categoryName)
+        );
     }
 
     public PostEntity getPostById(Long postId) {

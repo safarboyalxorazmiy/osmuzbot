@@ -28,16 +28,7 @@ public class InnerCategoryService {
         InnerCategoryEntity innerCategory = new InnerCategoryEntity();
         innerCategory.setCategoryId(getIdByCategoryName(categoryName));
 
-        Optional<InnerCategoryEntity> byNameUz = innerCategoryRepository.findByNameUz(nameUz);
-        if (byNameUz.isPresent()) {
-            throw new InnerCategoryNameFoundException(nameUz + " already exists");
-        }
         innerCategory.setNameUz(nameUz);
-
-        Optional<InnerCategoryEntity> byNameRu = innerCategoryRepository.findByNameRu(nameRu);
-        if (byNameRu.isPresent()) {
-            throw new InnerCategoryNameFoundException(nameUz + " already exists");
-        }
         innerCategory.setNameRu(nameRu);
 
         innerCategoryRepository.save(innerCategory);
@@ -69,8 +60,8 @@ public class InnerCategoryService {
         return result;
     }
 
-    public String getInnerCategoryIdByName(String innerCategoryName) {
-        Optional<InnerCategoryEntity> byName = innerCategoryRepository.findByName(innerCategoryName);
+    public String getInnerCategoryIdByNameAndCategoryName(String innerCategoryName, String categoryName) {
+        Optional<InnerCategoryEntity> byName = innerCategoryRepository.findByNameAndParentName(innerCategoryName, categoryName);
         if (byName.isEmpty()) {
             throw new CategoryNotFoundException("Category not found by this name: " + innerCategoryName);
         }
@@ -79,8 +70,8 @@ public class InnerCategoryService {
         return category.getId();
     }
 
-    public Boolean findByName(String name) {
-        Optional<InnerCategoryEntity> byName = innerCategoryRepository.findByName(name);
+    public Boolean findByNameAndCategoryName(String name, String innerCategoryName) {
+        Optional<InnerCategoryEntity> byName = innerCategoryRepository.findByNameAndParentName(name, innerCategoryName);
         if (byName.isEmpty()) {
             return false;
         }
@@ -100,44 +91,30 @@ public class InnerCategoryService {
     }
 
     public void init() {
-        create("Xizmatlar", "Qurilish va ta'mirlash", "Строительство и ремонт");
-        create("Xizmatlar", "Mebel va gilamlar tozalash", "Чистка мебели и ковров");
-        create("Xizmatlar", "Santexnika xizmati", "Сантехнические услуги");
-        create("Xizmatlar", "Foto va video xizmatlari", "Фото и видео услуги");
-        create("Xizmatlar", "Kompyuter va Kompyuter jihozlarini ta'mirlash", "Ремонт компьютеров и компьютерной техники");
-        create("Xizmatlar", "To'y va ma'rosimlar tashkillashtirish", "Организация свадеб и торжеств");
-        create("Xizmatlar", "Kamera va signalizatsiya o'rnatish va ta'mirlash", "Установка и ремонт камер и сигнализаций");
-        create("Xizmatlar", "Tom orqa va yerlarga ishlov berish", "Кровля и земляные работы");
-        create("Xizmatlar", "Isitish va sovitish xizmatlari", "Услуги по отоплению и охлаждению");
-        create("Xizmatlar", "Parda va jalyuzi xizmatlari", "Услуги штор и жалюзи");
-        create("Xizmatlar", "Kunlik ishchilar xizmati", "Служба поденщиков");
+        create("1-kichik nohiya", "1-2 xonali", "1-2 комнатные");
+        create("1-kichik nohiya", "3-4 xonali", "3-4 комнатные");
+        create("1-kichik nohiya", "5+ xonali", "5+ комнатные");
 
-        create("Elektr jihozlar", "Telefonlar", "Телефоны");
-        create("Elektr jihozlar", "Video Texnika", "Видео Техника");
-        create("Elektr jihozlar", "Audiotexnika", "Аудиотехника");
-        create("Elektr jihozlar", "Uy uchun texnika", "Техника для дома");
-        create("Elektr jihozlar", "Kompyuterlar", "Компьютеры");
-        create("Elektr jihozlar", "Foto va Video texnika", "Фото и видео техника");
+        create("2-kichik nohiya", "1-2 xonali", "1-2 комнатные");
+        create("2-kichik nohiya", "3-4 xonali", "3-4 комнатные");
+        create("2-kichik nohiya", "5+ xonali", "5+ комнатные");
 
-        create("Ko'chmas mulk", "Kvartiralar", "Квартиры");
-        create("Ko'chmas mulk", "Garajlar", "Гаражи");
-        create("Ko'chmas mulk", "Xususiy uylar", "Частные дома");
-        create("Ko'chmas mulk", "Yer uchastkalar", "Земельные участки");
-        create("Ko'chmas mulk", "Tijorat binolar", "Коммерческие здания");
+        create("3-kichik nohiya", "1-2 xonali", "1-2 комнатные");
+        create("3-kichik nohiya", "3-4 xonali", "3-4 комнатные");
+        create("3-kichik nohiya", "5+ xonali", "5+ комнатные");
 
-        create("Moda va still", "Erkaklar uchun kiyimlar", "Одежда для мужчин");
-        create("Moda va still", "Qo'l soatlar", "Часы");
-        create("Moda va still", "Ayollar uchun kiyimlar", "Одежда для женщин");
-        create("Moda va still", "Oyog' buyumlar", "Обувь");
-        create("Moda va still", "To'y va ma'rosimlar uchun liboslar", "Платья для свадеб и церемоний");
-        create("Moda va still", "Parfyumerlar", "Парфюмеры");
-        create("Moda va still", "Aksesuarlar", "Аксессуары");
+        create("4-kichik nohiya", "1-2 xonali", "1-2 комнатные");
+        create("4-kichik nohiya", "3-4 xonali", "3-4 комнатные");
+        create("4-kichik nohiya", "5+ xonali", "5+ комнатные");
 
-        create("Bolalar dunyosi", "Bolalar kiyimlari", "Детская одежда");
-        create("Bolalar dunyosi", "Bolalar oyoq kiyimi", "Детские туфли");
-        create("Bolalar dunyosi", "Bolalar mebeli", "Детская мебель");
-        create("Bolalar dunyosi", "O'yinchoqlar", "Игрушки");
-        create("Bolalar dunyosi", "Kolyoskalar", "Коляски");
-        create("Bolalar dunyosi", "Maktab o'quvchilari uchun maxsulotlar", "Товары для школьников");
+        create("5-kichik nohiya", "1-2 xonali", "1-2 комнатные");
+        create("5-kichik nohiya", "3-4 xonali", "3-4 комнатные");
+        create("5-kichik nohiya", "5+ xonali", "5+ комнатные");
+
+        create("Hovlilar", "1-sektor", "1-сектор");
+        create("Hovlilar", "2-sektor", "2-сектор");
+        create("Hovlilar", "3-sektor", "3-сектор");
+        create("Hovlilar", "4-sektor", "4-сектор");
+
     }
 }

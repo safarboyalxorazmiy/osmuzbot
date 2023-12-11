@@ -309,9 +309,10 @@ public class TelegramBot extends TelegramLongPollingBot {
                     }
 
 
-                    if (innerCategoryService.findByName(messageText)) {
+                    if (innerCategoryService.findByNameAndCategoryName(messageText, userHistoryService.getLastCategoryName( chatId))) {
                         userHistoryService.create(Label.INNERCATEGORY_OPENED, chatId, messageText);
-                        showPosts(chatId, messageText, role, lang);
+                        String lastCategoryName = userHistoryService.getLastCategoryName(chatId);
+                        showPosts(chatId, lastCategoryName, messageText, role, lang);
                     } else if (categoryService.findByName(messageText)) {
                         userHistoryService.create(Label.CATEGORY_OPENED, chatId, messageText);
                         showInnerMenu(chatId, messageText, lang, role);
@@ -405,7 +406,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                             usersService.changeRole(chatId, Role.ROLE_OPERATOR);
                         }
                     }
-                } else if (update.getMessage().hasPhoto()) {
+                }
+                else if (update.getMessage().hasPhoto()) {
                     if (role != Role.ROLE_ADMIN) {
                         deleteMessageById(chatId, update.getMessage().getMessageId());
                         return;
@@ -414,6 +416,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                     Action lastOpened = adminHistoryService.getLastOpened(chatId);
                     Label lastLabel = adminHistoryService.getLastLabel(chatId);
                     String lastOpenedValue = adminHistoryService.getLastOpenedValue(chatId);
+                    String lastCategoryName = userHistoryService.getLastCategoryName(chatId);
                     Action lastAction = adminHistoryService.getLastAction(chatId);
 
                     if (lastAction == Action.CHANNEL_POST_CREATING) {
@@ -440,7 +443,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                                 org.telegram.telegrambots.meta.api.objects.File tgFile = execute(getFile);
                                 String fileUrl = tgFile.getFileUrl(getBotToken());
                                 if (update.getMessage().getCaption() != null) {
-                                    postService.create(update.getMessage().getCaption(), innerCategoryService.getInnerCategoryIdByName(lastOpenedValue));
+                                    postService.create(update.getMessage().getCaption(), innerCategoryService.getInnerCategoryIdByNameAndCategoryName(lastOpenedValue, lastCategoryName));
                                 }
                                 String localUrl = attachService.saveImageFromUrl(fileUrl);
                                 postPhotoService.create(postService.getLastId(), localUrl);
@@ -452,7 +455,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                             }
                         }
                     }
-                } else if (update.getMessage().hasContact()) {
+                }
+                else if (update.getMessage().hasContact()) {
                     // IS OFFER STARTED
                     Language language = usersService.getLanguageByChatId(chatId);
 
@@ -564,7 +568,9 @@ public class TelegramBot extends TelegramLongPollingBot {
                     showMainMenu(chatId, Language.UZ, userRole);
                 } else if (callBackData.contains("inner")) {
                     String innerCategoryId = callBackData.substring(6);
-                    List<PostEntity> postsByInnerCategoryId = postService.getPostsByInnerCategoryId(innerCategoryId);
+                    String lastCategoryName = userHistoryService.getLastCategoryName(chatId);
+
+                    List<PostEntity> postsByInnerCategoryId = postService.getPostsByInnerCategoryId(innerCategoryId, lastCategoryName);
 
                     for (PostEntity postEntity : postsByInnerCategoryId) {
                         deleteMessageById(chatId, (int) messageId);
@@ -587,8 +593,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void showPosts(Long chatId, String from, Role role, Language language) {
-        List<PostEntity> postsByInnerCategoryId = postService.getPostsByInnerCategoryId(from);
+    private void showPosts(Long chatId, String lastCategoryName, String lastInnerCategoryName, Role role, Language language) {
+        List<PostEntity> postsByInnerCategoryId = postService.getPostsByInnerCategoryId(lastInnerCategoryName, lastCategoryName);
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
@@ -608,7 +614,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             row.add("🔙 Назад");
         }
         if (role == Role.ROLE_ADMIN) {
-            adminHistoryService.create(chatId, Action.POST_OPENING, Label.NO_LABEL, from);
+            adminHistoryService.create(chatId, Action.POST_OPENING, Label.NO_LABEL, lastInnerCategoryName);
             row.add("+");
         }
 
@@ -723,9 +729,9 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setChatId(chatId);
 //        message.setMessageId(messageId);
         if (language == Language.UZ) {
-            message.setText("<b>Bosh toifalar</b>");
+            message.setText("<b>Hududni tanlang.</b>");
         } else if (language == Language.RU) {
-            message.setText("<b>Основные категории</b>");
+            message.setText("<b>Выберите область.</b>");
         }
         message.enableHtml(true);
 
@@ -741,10 +747,13 @@ public class TelegramBot extends TelegramLongPollingBot {
             contents = categoryService.getAllUz();
         }
 
-        for (int i = 0; i < contents.size(); i++) {
+        for (int i = 0; i <= contents.size() - 1; i++) {
             if (i % 2 == 0 || i + 1 == contents.size()) {
                 row = new KeyboardRow();
             }
+
+            // 4
+            // 3 + 1 == 4
 
             row.add(contents.get(i));
 
@@ -794,15 +803,42 @@ public class TelegramBot extends TelegramLongPollingBot {
             contents = innerCategoryService.getAllRu(from);
         }
 
-//        || contents.get(i).length() > 23
-        for (int i = 0; i < contents.size(); i++) {
-            if (i % 2 == 0 || (i + 1 == contents.size() && contents.size() > 2)) {
+
+/*        for (int i = 0; i <= contents.size() - 1; i++) {
+            if (i % 2 == 0 || i + 1 == contents.size()) {
                 row = new KeyboardRow();
             }
-            row.add(contents.get(i).getName());
+
+            // 4
+            // 3 + 1 == 4
+
+            row.add(contents.get(i));
 
             if ((i != 0 && i % 2 == 1) || i + 1 == contents.size()) {
                 rows.add(row);
+            }
+        }
+
+ */
+
+//        || contents.get(i).length() > 23
+        for (int i = 0; i <= contents.size() - 1; i++) {
+            System.out.println(contents.get(i).getName());
+            if (i % 2 == 0  || (i == contents.size())) {
+                System.out.println("OPENING ROW");
+                row = new KeyboardRow();
+
+                System.out.println(contents.get(i).getName());
+            }
+
+            row.add(contents.get(i).getName());
+
+            // 2
+            if (i % 2 > 0 || (i == contents.size() - 1)) {
+                System.out.println("CLOSING ROW");
+                rows.add(row);
+
+                System.out.println(contents.get(i).getName());
             }
         }
 
